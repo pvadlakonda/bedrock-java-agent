@@ -72,8 +72,8 @@ class AgentConfigTest {
 
         assertEquals("us-east-1", config.getAwsRegion(),
                 "Default aws.region should be us-east-1");
-        assertEquals("anthropic.claude-3-haiku-20240307-v1:0", config.getModelId(),
-                "Default bedrock.model.id should be anthropic.claude-3-haiku-20240307-v1:0");
+        assertEquals("amazon.nova-pro-v1:0", config.getModelId(),
+                "Default bedrock.model.id should be amazon.nova-pro-v1:0");
         assertEquals(1024, config.getMaxTokens(),
                 "Default bedrock.max.tokens should be 1024");
         assertEquals("", config.getKnowledgeBaseId(),
@@ -166,5 +166,71 @@ class AgentConfigTest {
                 "isKnowledgeBaseConfigured() should return true");
         assertTrue(config.isS3Configured(),
                 "isS3Configured() should return true");
+    }
+
+    // -------------------------------------------------------------------------
+    // 12.1 — getGuardrailId() and getGuardrailVersion() load from properties
+    // -------------------------------------------------------------------------
+
+    @Test
+    void guardrailIdIsLoadedFromProperties() {
+        AgentConfig config = fromProperties("bedrock.guardrail.id=abc123def456");
+        assertEquals("abc123def456", config.getGuardrailId(),
+                "getGuardrailId() should return the configured guardrail ID");
+    }
+
+    @Test
+    void guardrailVersionIsLoadedFromProperties() {
+        AgentConfig config = fromProperties(
+                "bedrock.guardrail.id=abc123def456\nbedrock.guardrail.version=1");
+        assertEquals("1", config.getGuardrailVersion(),
+                "getGuardrailVersion() should return the configured version");
+    }
+
+    // -------------------------------------------------------------------------
+    // 12.2 — getGuardrailVersion() defaults to "DRAFT" when absent
+    // -------------------------------------------------------------------------
+
+    @Test
+    void guardrailVersionDefaultsToDraftWhenAbsent() {
+        AgentConfig config = fromProperties("");
+        assertEquals("DRAFT", config.getGuardrailVersion(),
+                "getGuardrailVersion() should default to DRAFT when property is absent");
+    }
+
+    // -------------------------------------------------------------------------
+    // 12.3 — isGuardrailConfigured() returns false for blank and sentinel
+    // -------------------------------------------------------------------------
+
+    @Test
+    void isGuardrailConfiguredReturnsFalseWhenPropertyAbsent() {
+        AgentConfig config = fromProperties("");
+        assertFalse(config.isGuardrailConfigured(),
+                "isGuardrailConfigured() should return false when property is absent");
+    }
+
+    @Test
+    void isGuardrailConfiguredReturnsFalseForBlankId() {
+        AgentConfig config = fromProperties("bedrock.guardrail.id=");
+        assertFalse(config.isGuardrailConfigured(),
+                "isGuardrailConfigured() should return false when guardrail ID is blank");
+    }
+
+    @Test
+    void isGuardrailConfiguredReturnsFalseForSentinelValue() {
+        AgentConfig config = fromProperties("bedrock.guardrail.id=YOUR_GUARDRAIL_ID");
+        assertFalse(config.isGuardrailConfigured(),
+                "isGuardrailConfigured() should return false for sentinel value YOUR_GUARDRAIL_ID");
+    }
+
+    // -------------------------------------------------------------------------
+    // 12.4 — isGuardrailConfigured() returns true for a real ID
+    // -------------------------------------------------------------------------
+
+    @Test
+    void isGuardrailConfiguredReturnsTrueForRealId() {
+        AgentConfig config = fromProperties("bedrock.guardrail.id=abc123def456");
+        assertTrue(config.isGuardrailConfigured(),
+                "isGuardrailConfigured() should return true for a real guardrail ID");
     }
 }

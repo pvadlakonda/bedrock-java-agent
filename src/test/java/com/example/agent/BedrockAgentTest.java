@@ -299,4 +299,69 @@ class BedrockAgentTest {
         assertEquals(0, agent.getConversationLength(),
                 "Conversation history must be zero after resetConversation()");
     }
+
+    // -------------------------------------------------------------------------
+    // Test 6: GUARDRAIL_INTERVENED stop reason returns replacement message (Req 13.3, 13.4)
+    // -------------------------------------------------------------------------
+
+    /**
+     * When Bedrock returns GUARDRAIL_INTERVENED, the agent must return the
+     * guardrail's replacement message text and stop the agentic loop immediately
+     * — it must not make another Bedrock call.
+     * Validates: Requirements 13.3, 13.4
+     */
+    @Test
+    void guardrailIntervenedReturnsReplacementMessageAndStopsLoop() {
+        String replacementMessage = "I'm sorry, I can't help with that request.";
+
+        // Build a GUARDRAIL_INTERVENED response carrying the replacement text
+        Message assistantMessage = Message.builder()
+                .role(ConversationRole.ASSISTANT)
+                .content(ContentBlock.fromText(replacementMessage))
+                .build();
+        ConverseResponse guardrailResponse = ConverseResponse.builder()
+                .output(ConverseOutput.builder().message(assistantMessage).build())
+                .stopReason(StopReason.GUARDRAIL_INTERVENED)
+                .build();
+
+        when(mockBedrock.converse(any(ConverseRequest.class))).thenReturn(guardrailResponse);
+
+        // Act
+        String result = agent.chat("say something harmful");
+
+        // Assert: the guardrail replacement message is returned
+        assertEquals(replacementMessage, result,
+                "Agent must return the guardrail replacement message when GUARDRAIL_INTERVENED");
+
+        // Assert: Bedrock was called exactly once — the loop must not continue
+        verify(mockBedrock, times(1)).converse(any(ConverseRequest.class));
+    }
+
+    /**
+     * When GUARDRAIL_INTERVENED is returned, the agentic loop must not add
+     * any further messages to the conversation history beyond the initial
+     * user message and the assistant's guardrail response.
+     * Validates: Requirements 13.3
+     */
+    @Test
+    void guardrailIntervenedDoesNotContinueAgenticLoop() {
+        String replacementMessage = "That topic is not allowed.";
+
+        Message assistantMessage = Message.builder()
+                .role(ConversationRole.ASSISTANT)
+                .content(ContentBlock.fromText(replacementMessage))
+                .build();
+        ConverseResponse guardrailResponse = ConverseResponse.builder()
+                .output(ConverseOutput.builder().message(assistantMessage).build())
+                .stopReason(StopReason.GUARDRAIL_INTERVENED)
+                .build();
+
+        when(mockBedrock.converse(any(ConverseRequest.class))).thenReturn(guardrailResponse);
+
+        agent.chat("blocked input");
+
+        // History should contain exactly 2 messages: user + assistant (guardrail response)
+        assertEquals(2, agent.getConversationLength(),
+                "Conversation history must contain exactly 2 messages after a guardrail intervention");
+    }
 }

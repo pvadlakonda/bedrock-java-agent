@@ -4,6 +4,7 @@ A Java-based AI Agent that uses **Amazon Bedrock** (Claude 3 Haiku) with:
 - **Tool use** — calculator, current time, S3 file reader
 - **Knowledge Base (RAG)** — retrieves context from your S3 documents via Bedrock Knowledge Base
 - **Conversation memory** — maintains history across turns in a session
+- **Guardrails** — content filtering, PII redaction, and topic controls via Bedrock Guardrails
 
 ---
 
@@ -37,6 +38,10 @@ bedrock.knowledge.base.id=YOUR_KB_ID
 
 # Optional — for the S3 file reader tool
 s3.default.bucket=your-bucket-name
+
+# Optional — set after creating a Guardrail
+bedrock.guardrail.id=YOUR_GUARDRAIL_ID
+bedrock.guardrail.version=DRAFT
 ```
 
 ### 2. Build
@@ -75,6 +80,37 @@ Now when you ask questions, the agent will automatically retrieve relevant passa
 
 ---
 
+## Setting Up Guardrails
+
+Bedrock Guardrails evaluate both user inputs and model responses against your configured policies before your code sees them.
+
+**What you can enforce:**
+- **Content filters** — block hate speech, violence, sexual content, and insults with configurable thresholds (None / Low / Medium / High)
+- **Denied topics** — define topics the agent must never discuss (e.g. "competitor products", "legal advice")
+- **Word/phrase blocklist** — exact words or phrases to always block
+- **PII redaction** — automatically detect and mask names, emails, phone numbers, SSNs, credit card numbers, etc.
+- **Grounding checks** — ensure responses are grounded in the provided context (useful with RAG)
+
+### Steps
+
+1. **Create a Guardrail** in the AWS Console:
+   - Go to **Bedrock → Guardrails → Create guardrail**
+   - Configure the policies you need
+   - Click **Create guardrail** and note the **Guardrail ID** (looks like `abc123def456`)
+
+2. **Set it in `config.properties`**:
+   ```properties
+   bedrock.guardrail.id=abc123def456
+   bedrock.guardrail.version=DRAFT
+   ```
+   Once you're happy with the guardrail, publish a numbered version in the console and switch to e.g. `bedrock.guardrail.version=1`.
+
+3. **That's it** — the agent attaches the guardrail to every `ConverseRequest` automatically. When a guardrail blocks a response, Bedrock replaces it with a canned message and the agent surfaces that to the user.
+
+> Leave `bedrock.guardrail.id=YOUR_GUARDRAIL_ID` to disable guardrails entirely.
+
+---
+
 ## Example Conversations
 
 ```
@@ -101,9 +137,9 @@ bedrock-agent/
 ├── src/main/
 │   ├── java/com/example/agent/
 │   │   ├── Main.java                          # CLI entry point
-│   │   ├── BedrockAgent.java                  # Core agent loop
+│   │   ├── BedrockAgent.java                  # Core agent loop + guardrail wiring
 │   │   ├── config/
-│   │   │   └── AgentConfig.java               # Config loader
+│   │   │   └── AgentConfig.java               # Config loader (incl. guardrail settings)
 │   │   ├── tools/
 │   │   │   ├── Tool.java                      # Tool interface
 │   │   │   ├── ToolRegistry.java              # Tool registry
@@ -113,7 +149,7 @@ bedrock-agent/
 │   │   └── knowledge/
 │   │       └── KnowledgeBaseService.java      # KB retrieval (RAG)
 │   └── resources/
-│       ├── config.properties                  # Configuration
+│       ├── config.properties                  # Configuration (region, model, KB, guardrail)
 │       └── logback.xml                        # Logging config
 ```
 
@@ -166,6 +202,7 @@ Your IAM user/role needs:
   "Action": [
     "bedrock:InvokeModel",
     "bedrock:Converse",
+    "bedrock:ApplyGuardrail",
     "bedrock-agent-runtime:Retrieve",
     "s3:GetObject",
     "s3:ListBucket"
@@ -183,5 +220,6 @@ Your IAM user/role needs:
 | Input tokens | $0.00025 / 1K tokens |
 | Output tokens | $0.00125 / 1K tokens |
 | KB retrieval | ~$0.0004 / query |
+| Guardrail (text units) | ~$0.00075 / text unit |
 
 A typical conversation turn costs **less than $0.001**.

@@ -83,4 +83,18 @@ public class AgentConfig {
         String bucket = getS3DefaultBucket();
         return bucket != null && !bucket.isBlank() && !bucket.equals("YOUR_S3_BUCKET_NAME");
     }
+
+    public String getGuardrailId() {
+        return props.getProperty("bedrock.guardrail.id", "");
+    }
+
+    public String getGuardrailVersion() {
+        return props.getProperty("bedrock.guardrail.version", "DRAFT");
+    }
+
+    /** Returns true if a real Guardrail ID has been configured. */
+    public boolean isGuardrailConfigured() {
+        String id = getGuardrailId();
+        return id != null && !id.isBlank() && !id.equals("YOUR_GUARDRAIL_ID");
+    }
 }

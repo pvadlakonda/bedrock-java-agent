@@ -23,6 +23,9 @@ This document describes the requirements for a Java-based AI Agent that integrat
 - **Calculator**: The `calculator` Tool that evaluates mathematical expressions and returns numeric results.
 - **Time_Tool**: The `get_current_time` Tool that returns the current date and time for a given timezone.
 - **Weather_Tool**: The `get_current_weather` Tool that returns current weather conditions for a given city using the Open-Meteo API.
+- **Guardrail**: A Bedrock Guardrail resource that enforces content policies on both user inputs and model responses.
+- **Guardrail_Id**: The unique identifier of the Bedrock Guardrail resource (e.g. `abc123def456`).
+- **Guardrail_Version**: The version of the Guardrail to apply — either `DRAFT` or a published integer version string (e.g. `1`).
 
 ---
 
@@ -165,13 +168,39 @@ This document describes the requirements for a Java-based AI Agent that integrat
 
 ---
 
+### Requirement 12: Bedrock Guardrails Configuration
+
+**User Story:** As a developer, I want to configure a Bedrock Guardrail via `config.properties`, so that content policies are enforced without code changes.
+
+#### Acceptance Criteria
+
+1. THE Config SHALL load `bedrock.guardrail.id` and `bedrock.guardrail.version` from `config.properties`.
+2. THE Config SHALL default `bedrock.guardrail.version` to `DRAFT` when the property is absent.
+3. WHEN the Guardrail ID property equals `YOUR_GUARDRAIL_ID` or is blank, THE Config SHALL report the Guardrail as not configured.
+4. WHEN the Guardrail ID is a non-blank value other than `YOUR_GUARDRAIL_ID`, THE Config SHALL report the Guardrail as configured.
+
+---
+
+### Requirement 13: Guardrail Enforcement on Every Turn
+
+**User Story:** As an operator, I want every model request to be evaluated against my Bedrock Guardrail, so that content policies are applied consistently to both user inputs and model responses.
+
+#### Acceptance Criteria
+
+1. WHEN a Guardrail is configured, THE Agent SHALL attach a `GuardrailConfiguration` (containing the Guardrail_Id and Guardrail_Version) to every Bedrock Converse API request.
+2. WHEN a Guardrail is not configured, THE Agent SHALL send Converse API requests without any `GuardrailConfiguration`.
+3. WHEN the Converse API returns a stop reason of `GUARDRAIL_INTERVENED`, THE Agent SHALL extract the text content from the response (which contains the guardrail's replacement message) and return it as the final response without continuing the agentic loop.
+4. WHEN the Converse API returns `GUARDRAIL_INTERVENED`, THE Agent SHALL log a warning indicating that the guardrail intervened.
+
+---
+
 ### Requirement 10: CLI Chat Interface
 
 **User Story:** As a user, I want an interactive command-line interface to chat with the agent, so that I can send messages and receive responses in a simple terminal session.
 
 #### Acceptance Criteria
 
-1. WHEN the CLI starts, THE CLI SHALL display the agent's configuration status including the AWS region, model ID, Knowledge Base status, and S3 bucket status.
+1. WHEN the CLI starts, THE CLI SHALL display the agent's configuration status including the AWS region, model ID, Knowledge Base status, S3 bucket status, and Guardrail status.
 2. WHEN the user enters a non-empty, non-command message, THE CLI SHALL send it to the Agent and print the response prefixed with `"Agent: "`.
 3. WHEN the user enters `/reset` or `/clear`, THE CLI SHALL call `Agent.resetConversation()` and print a confirmation message.
 4. WHEN the user enters `/quit`, `/exit`, or `/q`, THE CLI SHALL exit the chat loop and terminate the program.

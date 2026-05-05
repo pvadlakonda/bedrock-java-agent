@@ -27,7 +27,7 @@ The system follows a layered architecture with clear separation between the CLI 
 graph TD
     User["User (CLI)"] --> Main
     Main --> BedrockAgent
-    BedrockAgent --> BedrockRuntimeClient["BedrockRuntimeClient\n(Converse API)"]
+    BedrockAgent --> BedrockRuntimeClient["BedrockRuntimeClient\n(Converse API + Guardrail)"]
     BedrockAgent --> ToolRegistry
     BedrockAgent --> KnowledgeBaseService
     ToolRegistry --> GetCurrentTimeTool
@@ -63,6 +63,8 @@ sequenceDiagram
         BedrockRuntimeClient-->>BedrockAgent: response (stopReason)
         alt stopReason == END_TURN or MAX_TOKENS
             BedrockAgent-->>Main: final text response
+        else stopReason == GUARDRAIL_INTERVENED
+            BedrockAgent-->>Main: guardrail replacement message
         else stopReason == TOOL_USE
             BedrockAgent->>ToolRegistry: get(toolName)
             ToolRegistry-->>BedrockAgent: Tool
@@ -92,6 +94,8 @@ The core orchestrator. Responsibilities:
 - Calls `KnowledgeBaseService.retrieve()` before each turn and prepends context to the user message.
 - Runs the agentic loop: calls Bedrock Converse API, handles `TOOL_USE` stop reason by executing tools and feeding results back, terminates on `END_TURN` or `MAX_TOKENS`.
 - Caps the loop at `MAX_TOOL_ITERATIONS = 10` to prevent infinite loops.
+- Attaches a `GuardrailConfiguration` to every Converse request when a guardrail is configured.
+- Handles `GUARDRAIL_INTERVENED` stop reason by returning the guardrail's replacement message immediately.
 - Exposes `resetConversation()` and `getConversationLength()`.
 
 Key method signatures:
@@ -136,9 +140,12 @@ All tools return plain-text strings. Error conditions are communicated via error
 | `bedrock.knowledge.base.results` | `5` |
 | `s3.default.bucket` | `""` |
 | `agent.system.prompt` | `"You are a helpful AI assistant."` |
+| `bedrock.guardrail.id` | `""` |
+| `bedrock.guardrail.version` | `"DRAFT"` |
 
 - `isKnowledgeBaseConfigured()` returns `false` when the KB ID is blank or equals `YOUR_KNOWLEDGE_BASE_ID`.
 - `isS3Configured()` returns `false` when the bucket is blank or equals `YOUR_S3_BUCKET_NAME`.
+- `isGuardrailConfigured()` returns `false` when the guardrail ID is blank or equals `YOUR_GUARDRAIL_ID`.
 
 ### `KnowledgeBaseService`
 
@@ -250,6 +257,8 @@ bedrock.knowledge.base.id       String   KB ID (empty = disabled)
 bedrock.knowledge.base.results  int      Number of KB results to retrieve
 s3.default.bucket               String   Default S3 bucket (empty = disabled)
 agent.system.prompt             String   System prompt for the model
+bedrock.guardrail.id            String   Guardrail ID (empty = disabled)
+bedrock.guardrail.version       String   Guardrail version (default: DRAFT)
 ```
 
 ---
@@ -400,6 +409,22 @@ agent.system.prompt             String   System prompt for the model
 
 ---
 
+### Property 19: Guardrail Attached When Configured
+
+*For any* valid Guardrail ID and version, when a guardrail is configured, every `ConverseRequest` built by `BedrockAgent` must include a `GuardrailConfiguration` with the matching ID and version.
+
+**Validates: Requirements 13.1**
+
+---
+
+### Property 20: No Guardrail Attached When Not Configured
+
+*For any* `BedrockAgent` instance where the guardrail ID is blank or equals `YOUR_GUARDRAIL_ID`, every `ConverseRequest` built must not include a `GuardrailConfiguration`.
+
+**Validates: Requirements 13.2**
+
+---
+
 ## Error Handling
 
 ### Strategy
@@ -420,6 +445,7 @@ The system uses a two-tier error handling approach:
 | `BedrockAgent` | Unknown tool requested by model | Returns error string to model |
 | `BedrockAgent` | Tool `execute()` throws | Catches, logs, returns error string to model |
 | `BedrockAgent` | Agentic loop hits 10 iterations | Returns fixed fallback message |
+| `BedrockAgent` | `GUARDRAIL_INTERVENED` stop reason | Logs warning, returns guardrail replacement message |
 | `KnowledgeBaseService` | KB API call fails | Logs error, returns empty string (graceful degradation) |
 | `KnowledgeBaseService` | KB not configured | Returns empty string immediately |
 | `GetCurrentTimeTool` | Invalid timezone | Returns error string containing the invalid timezone |

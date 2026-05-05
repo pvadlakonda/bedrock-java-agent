@@ -139,6 +139,9 @@ public class Main {
         System.out.println("  S3 Bucket:      " + (config.isS3Configured()
                 ? config.getS3DefaultBucket()
                 : "NOT CONFIGURED (set s3.default.bucket in config.properties)"));
+        System.out.println("  Guardrail:      " + (config.isGuardrailConfigured()
+                ? config.getGuardrailId() + " (version: " + config.getGuardrailVersion() + ")"
+                : "NOT CONFIGURED (set bedrock.guardrail.id in config.properties)"));
         System.out.println();
     }
 }

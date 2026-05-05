@@ -278,6 +278,53 @@ The production source code is fully implemented. This plan covers adding test de
 - [ ] 26. Final checkpoint — Full build passes with WeatherTool
   - Run `mvn test` and confirm all tests pass with zero failures
 
+- [ ] 27. Add Bedrock Guardrails support
+  - [x] 27.1 Add guardrail accessors to `AgentConfig`
+    - Add `getGuardrailId()` returning `bedrock.guardrail.id` (default `""`)
+    - Add `getGuardrailVersion()` returning `bedrock.guardrail.version` (default `"DRAFT"`)
+    - Add `isGuardrailConfigured()` returning `false` when ID is blank or equals `YOUR_GUARDRAIL_ID`
+    - _Requirements: 12.1, 12.2, 12.3, 12.4_
+
+  - [x] 27.2 Wire guardrail into `BedrockAgent.callBedrock()`
+    - Import `GuardrailConfiguration` from the Bedrock Runtime SDK
+    - When `config.isGuardrailConfigured()` is true, attach `GuardrailConfiguration` (ID + version) to the `ConverseRequest`
+    - Log at DEBUG level when the guardrail is applied
+    - _Requirements: 13.1, 13.2_
+
+  - [x] 27.3 Handle `GUARDRAIL_INTERVENED` stop reason in `BedrockAgent.runAgentLoop()`
+    - Add a branch for `StopReason.GUARDRAIL_INTERVENED`
+    - Log a warning and return `extractTextFromMessage(assistantMessage)` (the guardrail's replacement text)
+    - _Requirements: 13.3, 13.4_
+
+  - [x] 27.4 Add guardrail properties to `config.properties`
+    - Add `bedrock.guardrail.id=YOUR_GUARDRAIL_ID`
+    - Add `bedrock.guardrail.version=DRAFT`
+    - Include a comment explaining how to obtain and set the guardrail ID
+    - _Requirements: 12.1_
+
+  - [x] 27.5 Update `Main.printConfigStatus()` to display guardrail status
+    - Print the guardrail ID and version when configured, or `NOT CONFIGURED` otherwise
+    - _Requirements: 10.1_
+
+- [ ] 28. Write unit and integration tests for Guardrails
+  - [ ] 28.1 Update `AgentConfigTest` with guardrail accessor tests
+    - Test `isGuardrailConfigured()` returns `false` for blank and `YOUR_GUARDRAIL_ID`
+    - Test `isGuardrailConfigured()` returns `true` for a real ID
+    - Test `getGuardrailVersion()` defaults to `"DRAFT"`
+    - _Requirements: 12.1, 12.2, 12.3, 12.4_
+
+  - [ ] 28.2 Update `BedrockAgentTest` with guardrail stop reason test
+    - Test that when the mocked Bedrock client returns `GUARDRAIL_INTERVENED`, `chat()` returns the assistant message text without continuing the loop
+    - _Requirements: 13.3, 13.4_
+
+  - [ ] 28.3 Update `BedrockAgentIntegrationTest` with guardrail attachment tests
+    - **Property 19**: When guardrail is configured, verify every `ConverseRequest` contains a `GuardrailConfiguration` with the correct ID and version
+    - **Property 20**: When guardrail is not configured, verify `ConverseRequest` has no `GuardrailConfiguration`
+    - _Requirements: 13.1, 13.2_
+
+- [ ] 29. Final checkpoint — Full build passes with Guardrails
+  - Run `mvn test` and confirm all tests pass with zero failures
+
 ## Notes
 
 - Tasks marked with `*` are optional and can be skipped for a faster MVP

@@ -12,7 +12,6 @@ import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient;
 import software.amazon.awssdk.services.bedrockruntime.model.*;
 
 import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -203,5 +202,66 @@ class BedrockAgentIntegrationTest {
                 .anyMatch(cb -> cb.text() != null && cb.text().contains(secondMessage));
         assertTrue(secondUserMessageFound,
                 "Second request must contain the second user message");
+    }
+
+    // -------------------------------------------------------------------------
+    // Test: guardrail config is attached to request when configured (Req 13.1)
+    // Property 19: Guardrail attached when configured
+    // -------------------------------------------------------------------------
+
+    /**
+     * When a guardrail is configured, every ConverseRequest must include a
+     * GuardrailConfiguration with the matching ID and version.
+     * Validates: Requirements 13.1
+     */
+    @Test
+    void guardrailConfigurationIsAttachedWhenConfigured() {
+        String guardrailId = "abc123def456";
+        String guardrailVersion = "1";
+
+        when(mockConfig.isGuardrailConfigured()).thenReturn(true);
+        when(mockConfig.getGuardrailId()).thenReturn(guardrailId);
+        when(mockConfig.getGuardrailVersion()).thenReturn(guardrailVersion);
+
+        ArgumentCaptor<ConverseRequest> requestCaptor = ArgumentCaptor.forClass(ConverseRequest.class);
+        when(mockBedrock.converse(requestCaptor.capture()))
+                .thenReturn(endTurnResponse("Hello!"));
+
+        agent.chat("Hello");
+
+        ConverseRequest captured = requestCaptor.getValue();
+        GuardrailConfiguration guardrailConfig = captured.guardrailConfig();
+
+        assertNotNull(guardrailConfig,
+                "ConverseRequest must include a GuardrailConfiguration when guardrail is configured");
+        assertEquals(guardrailId, guardrailConfig.guardrailIdentifier(),
+                "GuardrailConfiguration must use the configured guardrail ID");
+        assertEquals(guardrailVersion, guardrailConfig.guardrailVersion(),
+                "GuardrailConfiguration must use the configured guardrail version");
+    }
+
+    // -------------------------------------------------------------------------
+    // Test: no guardrail config attached when not configured (Req 13.2)
+    // Property 20: No guardrail attached when not configured
+    // -------------------------------------------------------------------------
+
+    /**
+     * When a guardrail is not configured, ConverseRequests must not include
+     * any GuardrailConfiguration.
+     * Validates: Requirements 13.2
+     */
+    @Test
+    void guardrailConfigurationIsAbsentWhenNotConfigured() {
+        when(mockConfig.isGuardrailConfigured()).thenReturn(false);
+
+        ArgumentCaptor<ConverseRequest> requestCaptor = ArgumentCaptor.forClass(ConverseRequest.class);
+        when(mockBedrock.converse(requestCaptor.capture()))
+                .thenReturn(endTurnResponse("Hello!"));
+
+        agent.chat("Hello");
+
+        ConverseRequest captured = requestCaptor.getValue();
+        assertNull(captured.guardrailConfig(),
+                "ConverseRequest must not include a GuardrailConfiguration when guardrail is not configured");
     }
 }

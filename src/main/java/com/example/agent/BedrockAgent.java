@@ -16,6 +16,7 @@ import software.amazon.awssdk.services.bedrockruntime.model.ContentBlock;
 import software.amazon.awssdk.services.bedrockruntime.model.ConversationRole;
 import software.amazon.awssdk.services.bedrockruntime.model.ConverseRequest;
 import software.amazon.awssdk.services.bedrockruntime.model.ConverseResponse;
+import software.amazon.awssdk.services.bedrockruntime.model.GuardrailConfiguration;
 import software.amazon.awssdk.services.bedrockruntime.model.InferenceConfiguration;
 import software.amazon.awssdk.services.bedrockruntime.model.Message;
 import software.amazon.awssdk.services.bedrockruntime.model.StopReason;
@@ -137,6 +138,12 @@ public class BedrockAgent {
                 return extractTextFromMessage(assistantMessage);
             }
 
+            if (stopReason == StopReason.GUARDRAIL_INTERVENED) {
+                // A Bedrock Guardrail blocked or modified the response
+                log.warn("Guardrail intervened (iteration {})", iteration + 1);
+                return extractTextFromMessage(assistantMessage);
+            }
+
             if (stopReason == StopReason.TOOL_USE) {
                 // Model wants to use tools — execute them and continue the loop
                 List<ToolResultBlock> toolResults = executeToolCalls(assistantMessage);
@@ -178,6 +185,15 @@ public class BedrockAgent {
         // Attach tool definitions if any tools are registered
         if (!toolRegistry.getAll().isEmpty()) {
             requestBuilder.toolConfig(buildToolConfig());
+        }
+
+        // Attach guardrail if configured
+        if (config.isGuardrailConfigured()) {
+            requestBuilder.guardrailConfig(GuardrailConfiguration.builder()
+                    .guardrailIdentifier(config.getGuardrailId())
+                    .guardrailVersion(config.getGuardrailVersion())
+                    .build());
+            log.debug("Guardrail applied: {} ({})", config.getGuardrailId(), config.getGuardrailVersion());
         }
 
         try {
