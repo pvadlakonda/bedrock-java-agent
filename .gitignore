@@ -1,0 +1,15 @@
+# Maven
+target/
+dependency-reduced-pom.xml
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# jqwik database
+.jqwik-database
+
+# Logs
+*.log
