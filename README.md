@@ -1,7 +1,7 @@
 # Bedrock AI Agent (Java)
 
 A Java-based AI Agent that uses **Amazon Bedrock** (Claude 3 Haiku) with:
-- **Tool use** — calculator, current time, S3 file reader
+- **Tool use** — calculator, current time, weather, S3 file reader
 - **Knowledge Base (RAG)** — retrieves context from your S3 documents via Bedrock Knowledge Base
 - **Conversation memory** — maintains history across turns in a session
 - **Guardrails** — content filtering, PII redaction, and topic controls via Bedrock Guardrails
@@ -18,7 +18,7 @@ A Java-based AI Agent that uses **Amazon Bedrock** (Claude 3 Haiku) with:
 ### Enable Bedrock Model Access
 
 1. Go to **AWS Console → Bedrock → Model access**
-2. Request access to **Anthropic Claude 3 Haiku**
+2. Request access to **Amazon Nova Pro**
 3. Wait for approval (usually instant)
 
 ---
@@ -120,6 +120,13 @@ Agent: The current time in Tokyo (Asia/Tokyo) is Wednesday, April 29, 2026 at 14
 You: What is (1500 * 0.08) + 1500?
 Agent: Let me calculate that for you. (1500 * 0.08) + 1500 = 1620.0
 
+You: What's the weather like in Paris?
+Agent: Current weather in Paris:
+  Conditions:    Partly cloudy
+  Temperature:   18.4°C (feels like 17.1°C)
+  Humidity:      62%
+  Wind:          14.0 km/h from the SW
+
 You: Read the file reports/q1-summary.txt from S3
 Agent: [reads and returns the file contents]
 
@@ -145,6 +152,7 @@ bedrock-agent/
 │   │   │   ├── ToolRegistry.java              # Tool registry
 │   │   │   ├── GetCurrentTimeTool.java        # Time tool
 │   │   │   ├── CalculatorTool.java            # Math tool
+│   │   │   ├── WeatherTool.java               # Weather tool (Open-Meteo, no API key)
 │   │   │   └── S3FileReaderTool.java          # S3 reader tool
 │   │   └── knowledge/
 │   │       └── KnowledgeBaseService.java      # KB retrieval (RAG)
@@ -213,7 +221,7 @@ Your IAM user/role needs:
 
 ---
 
-## Cost Estimate (Claude 3 Haiku)
+## Cost Estimate (Amazon Nova Pro)
 
 | Operation | Cost |
 |-----------|------|
@@ -221,5 +229,6 @@ Your IAM user/role needs:
 | Output tokens | $0.00125 / 1K tokens |
 | KB retrieval | ~$0.0004 / query |
 | Guardrail (text units) | ~$0.00075 / text unit |
+| Weather tool | Free (Open-Meteo, no API key) |
 
 A typical conversation turn costs **less than $0.001**.
