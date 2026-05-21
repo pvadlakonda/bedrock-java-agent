@@ -1,8 +1,6 @@
 package com.example.agent.knowledge;
 
 import net.jqwik.api.*;
-import net.jqwik.api.constraints.AlphaChars;
-import net.jqwik.api.constraints.StringLength;
 import org.mockito.Mockito;
 import software.amazon.awssdk.services.bedrockagentruntime.BedrockAgentRuntimeClient;
 import software.amazon.awssdk.services.bedrockagentruntime.model.KnowledgeBaseRetrievalResult;

@@ -7,8 +7,6 @@ import net.jqwik.api.*;
 import software.amazon.awssdk.core.document.Document;
 
 import java.math.BigDecimal;
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 /**

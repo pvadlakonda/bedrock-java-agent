@@ -95,8 +95,6 @@ public class WeatherTool implements Tool {
             }
             double lat = coords[0];
             double lon = coords[1];
-            String resolvedName = coords.length > 2 ? null : null; // name comes from geocode response
-
             // Step 2: Fetch weather
             return fetchWeather(city, lat, lon);
 

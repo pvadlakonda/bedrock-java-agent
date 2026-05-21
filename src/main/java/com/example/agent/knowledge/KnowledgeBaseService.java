@@ -14,7 +14,6 @@ import software.amazon.awssdk.services.bedrockagentruntime.model.RetrieveRequest
 import software.amazon.awssdk.services.bedrockagentruntime.model.RetrieveResponse;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Retrieves relevant context from a Bedrock Knowledge Base (backed by S3 documents).
